@@ -1,5 +1,3 @@
-Loot drop multiplier for BorderLands 2.
-
 Adds configurable loot drop multiplication with asynchronous processing.
 Lower Async drop processing if experiencing crashes.
 
