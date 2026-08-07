@@ -1,0 +1,19 @@
+[project]
+name = "Drop Multiplier"
+version = "1.0"
+authors = [{ name = "youdietoo" }]
+description = """\
+Adds configurable loot drop multiplication with asynchronous processing.
+Lower Async drop processing if experiencing crashes.
+
+Features:
+- Multiplies enemy loot drops
+- Process additional loot rolls in the same tick
+"""
+dependencies = [
+]
+
+[tool.sdkmod]
+name = "Drop Multiplier"
+license = {name = "MIT", url = "https://choosealicense.com/licenses/mit/" }
+coop_support = "Unknown"
