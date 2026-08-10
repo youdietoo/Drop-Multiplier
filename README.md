@@ -5,4 +5,6 @@ Features:
 - Multiplies enemy loot drops
 - Process additional loot rolls in the same tick
 
+Original by: juso
+
 https://github.com/bl-sdk/willow2-mod-manager/ is needed to run the mod.
