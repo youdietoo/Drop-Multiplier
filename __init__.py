@@ -1,60 +1,48 @@
 import unrealsdk
-from mods_base import SliderOption, build_mod, hook
-from unrealsdk.unreal import UObject, WrappedStruct, BoundFunction
-from collections import deque
 
+from collections import deque
 from typing import Any
+
+from mods_base import SliderOption, build_mod, hook
+from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
+
 
 pending = deque()
 
-@SliderOption(
+multiplier_slider = SliderOption(
     identifier="Drop Multiplier",
     value=1,
     min_value=1,
     max_value=100,
     description="Extra loot rolls.",
 )
-def multiplier_slider(_opt: SliderOption, _new_value: float) -> None:
-    pass
 
 
-@SliderOption(
+async_processing_slider = SliderOption(
     identifier="Async Drop Processing",
     value=3,
     min_value=1,
     max_value=5,
     description="How many enemy drops are processed per tick.",
 )
-def async_processing_slider(_opt: SliderOption, _new_value: float) -> None:
-    pass
+
 
 
 @hook("WillowGame.WillowPawn:DropLootOnDeath")
-def drop_loot(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
-
+def add_or_remove_drop_job(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
     for job in pending:
         if job[0] == obj:
             if job[4] <= 0:
-                unrealsdk.logging.info(f"Removed drop queue: {obj}")
                 pending.remove(job)
                 return
 
             return
 
-    pending.append([
-        obj,
-        args.Killer,
-        args.DamageType,
-        args.DamageTypeDefinition,
-        int(multiplier_slider.value),
-    ])
-
-    unrealsdk.logging.info(f"Added drop queue: {obj}")
+    pending.append([obj, args.Killer, args.DamageType, args.DamageTypeDefinition, int(multiplier_slider.value),])
 
 
 @hook("Engine.PlayerController:PlayerTick")
 def player_tick(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
-
     if not pending:
         return
 
@@ -69,7 +57,7 @@ def player_tick(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFuncti
         job[0].DropLootOnDeath(
             job[1],
             job[2],
-            job[3],
+            job[3]
         )
 
         job[4] -= 1
@@ -97,9 +85,6 @@ def on_disable() -> None:
 
 
 mod = build_mod(
-    options=[
-        multiplier_slider,
-        async_processing_slider,
-    ],
-    on_disable=on_disable,
+    options=[multiplier_slider, async_processing_slider],
+    on_disable=on_disable
 )
