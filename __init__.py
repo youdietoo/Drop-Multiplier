@@ -33,12 +33,15 @@ def add_or_remove_drop_job(obj: UObject, args: WrappedStruct, _ret: Any, _func: 
     for job in pending:
         if job[0] == obj:
             if job[4] <= 0:
-                pending.remove(job)
+                try:
+                    pending.remove(job)
+                except ValueError:
+                    pass
                 return
 
             return
 
-    pending.append([obj, args.Killer, args.DamageType, args.DamageTypeDefinition, int(multiplier_slider.value),])
+    pending.append([obj, args.Killer, args.DamageType, args.DamageTypeDefinition, int(multiplier_slider.value)])
 
 
 @hook("Engine.PlayerController:PlayerTick")
@@ -53,13 +56,20 @@ def player_tick(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFuncti
             break
 
         job = pending[0]
+        pawn = job[0]
+        
+        try:
+            pawn.DropLootOnDeath(
+                job[1],
+                job[2],
+                job[3]
+            )
+        except Exception as e:
+            print("DropLootOnDeath error:", repr(e))
 
-        job[0].DropLootOnDeath(
-            job[1],
-            job[2],
-            job[3]
-        )
-
+            pending.popleft()
+            continue
+            
         job[4] -= 1
 
         if job[4] <= 0:
