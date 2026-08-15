@@ -1,11 +1,9 @@
 import unrealsdk
-
 from collections import deque
 from typing import Any
-
 from mods_base import SliderOption, build_mod, hook
+from unrealsdk.hooks import Type
 from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
-
 
 pending = deque()
 
@@ -14,7 +12,9 @@ multiplier_slider = SliderOption(
     value=1,
     min_value=1,
     max_value=100,
-    description="Extra loot rolls.",
+    step=1,
+    is_integer=True,
+    description="Extra loot rolls for player kills."
 )
 
 
@@ -23,29 +23,40 @@ async_processing_slider = SliderOption(
     value=3,
     min_value=1,
     max_value=5,
-    description="How many enemy drops are processed per tick.",
+    step=1,
+    is_integer=True,
+    description="How many enemy drops are processed per tick."
 )
 
+@hook("WillowGame.WillowAIPawn:Died", Type.PRE)
+def enemy_died(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
 
-
-@hook("WillowGame.WillowPawn:DropLootOnDeath")
-def add_or_remove_drop_job(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
+    # lets not add the same pawn again while it's being processed
     for job in pending:
         if job[0] == obj:
-            if job[4] <= 0:
-                try:
-                    pending.remove(job)
-                except ValueError:
-                    pass
-                return
-
             return
 
-    pending.append([obj, args.Killer, args.DamageType, args.DamageTypeDefinition, int(multiplier_slider.value)])
+    killer = getattr(args, "Killer", None)
+
+    if not killer:
+        return
+
+    multiplier = int(multiplier_slider.value)
+
+    pending.append(
+        [
+            obj,
+            killer,
+            getattr(args, "DamageType", None),
+            getattr(args, "DamageTypeDefinition", None),
+            multiplier
+        ]
+    )
 
 
 @hook("Engine.PlayerController:PlayerTick")
 def player_tick(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
+
     if not pending:
         return
 
@@ -56,26 +67,34 @@ def player_tick(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFuncti
             break
 
         job = pending[0]
+
         pawn = job[0]
-        
+        killer = job[1]
+        damage_type = job[2]
+        damage_type_definition = job[3]
+
         try:
             pawn.DropLootOnDeath(
-                job[1],
-                job[2],
-                job[3]
+                killer,
+                damage_type,
+                damage_type_definition
             )
+
         except Exception as e:
-            print("DropLootOnDeath error:", repr(e))
+            print(
+                f"[DropMultiplier] DropLootOnDeath error: {e}"
+            )
 
             pending.popleft()
             continue
-            
+
         job[4] -= 1
 
         if job[4] <= 0:
             pending.popleft()
         else:
             pending.rotate(-1)
+
 
 def clear_pending() -> None:
     pending.clear()
@@ -90,11 +109,15 @@ def on_load_map(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFuncti
 def on_exit(obj: UObject, args: WrappedStruct, _ret: Any, _func: BoundFunction) -> None:
     clear_pending()
 
+
 def on_disable() -> None:
-    pending.clear()
+    clear_pending()
 
 
 mod = build_mod(
-    options=[multiplier_slider, async_processing_slider],
+    options=[
+        multiplier_slider,
+        async_processing_slider
+    ],
     on_disable=on_disable
 )
